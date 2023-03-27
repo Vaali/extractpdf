@@ -6,14 +6,19 @@ from pdfminer.pdfpage import PDFPage
 import glob
 import os
 import time
+import multiprocessing
+import logging
 
 HTML_DIRECTORY = 'html'
 DATA_DIRECTORY = 'data'
 
+logging.basicConfig(filename='conversion.log', level=logging.ERROR,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
 def convert_pdffile( pdffile ):
     
     filename = os.path.splitext(os.path.basename(pdffile))[0]
-
+    logging.error(f'Started processing file: {filename}')
     htmlfilepath = HTML_DIRECTORY+'/'+filename+'.html'
     with open(pdffile, 'rb') as fh:
         input_bytes = BytesIO(fh.read())
@@ -34,6 +39,8 @@ def convert_pdffile( pdffile ):
             interpreter.process_page(page)
 
         device.close()
+    logging.error(f'Completed processing file: {filename}')
+
 
 def get_files(dir_path):
     pdf_files = glob.glob(dir_path+'/*.pdf')
@@ -47,8 +54,19 @@ def main():
     start_time = time.time()
 
     #files_list = ['data/lnm05382022.pdf']
-    for pdffile in files_list:
-        convert_pdffile(pdffile)
+    #for pdffile in files_list:
+    #    convert_pdffile(pdffile)
+    
+    # Create a process pool with 4 workers
+    pool = multiprocessing.Pool(processes=4)
+
+    # Convert all PDF files to HTML in parallel
+    pool.map(convert_pdffile, files_list)
+
+    # Close the pool and wait for the work to finish
+    pool.close()
+    pool.join()
+
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time: {elapsed_time} seconds")
