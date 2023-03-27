@@ -5,12 +5,10 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 import glob
 import os
+import time
 
 HTML_DIRECTORY = 'html'
 DATA_DIRECTORY = 'data'
-
-# output_path = 'output121.html'
-# input_path = '/Volumes/nighoodam/extractpdf/data/lnm05382022.pdf'
 
 def convert_pdffile( pdffile ):
     
@@ -46,10 +44,15 @@ def main():
         os.makedirs(HTML_DIRECTORY)
     
     files_list = get_files(DATA_DIRECTORY)
-    print(files_list)
-    files_list = ['data/lnm05382022.pdf']
+    start_time = time.time()
+
+    #files_list = ['data/lnm05382022.pdf']
     for pdffile in files_list:
         convert_pdffile(pdffile)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time} seconds")
+
 
 
 if __name__ == '__main__':
