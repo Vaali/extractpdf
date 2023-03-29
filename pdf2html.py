@@ -7,17 +7,13 @@ import glob
 import os
 import time
 import multiprocessing
-import logging
-import utils
-
-logging.basicConfig(filename='conversion.log', level=logging.ERROR,
-                    format='%(asctime)s:%(levelname)s:%(message)s')
+from utils import *
 
 def convert_pdffile( pdffile ):
     
     filename = os.path.splitext(os.path.basename(pdffile))[0]
     logging.error(f'Started processing file: {filename}')
-    htmlfilepath = utils.HTML_DIRECTORY+'/'+filename+'.html'
+    htmlfilepath = HTML_DIRECTORY+'/'+filename+'.html'
     with open(pdffile, 'rb') as fh:
         input_bytes = BytesIO(fh.read())
 
@@ -40,10 +36,10 @@ def convert_pdffile( pdffile ):
     logging.error(f'Completed processing file: {filename}')
 
 def main():
-    if not os.path.exists(utils.HTML_DIRECTORY):
-        os.makedirs(utils.HTML_DIRECTORY)
+    if not os.path.exists(HTML_DIRECTORY):
+        os.makedirs(HTML_DIRECTORY)
     
-    files_list = utils.get_files(utils.DATA_DIRECTORY,"pdf")
+    files_list = get_files(DATA_DIRECTORY,"pdf")
     start_time = time.time()
 
     #files_list = ['data/lnm05382022.pdf']
