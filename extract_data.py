@@ -66,6 +66,7 @@ def extract_blocks(htmlfile):
         curr_data['dates']=extract_dates(block)
         curr_data['coords']=extract_coords(block)
         curr_data['names']=extract_name(block)
+        curr_data['block'] = block
         data.append(curr_data)
     print(len(matches) )
     filename = os.path.splitext(os.path.basename(htmlfile))[0]

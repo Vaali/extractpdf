@@ -8,7 +8,7 @@ import logging
 
 dirs = ['NE','NW','SW','SE']
 NE = dict()
-
+gmap = gmplot.GoogleMapPlotter(40.5, -73.97, 10)
 def dms_to_decimal(dms):
     coords = re.split('/',dms)
     ret = []
@@ -35,7 +35,8 @@ def map_coords(filename,gmap):
     for d in data:
         if('coords' in d) and len(d['coords']) != 0:
             rect_coords = []
-            #print(data)
+            print(data)
+            marker_text = d['block'] 
             for x in dirs :
                 rect_coords.append(dms_to_decimal(d['coords'][x]))
             marker_lats, marker_lons = zip(*rect_coords)
@@ -48,12 +49,11 @@ def map_coords(filename,gmap):
             lats, lons = zip(*rect_coords)
             gmap.plot(lats, lons, 'cornflowerblue', edge_width=3)
             for lat, lon in zip(marker_lats, marker_lons):
-                gmap.marker(lat, lon, title='Marker')
+                gmap.marker(lat, lon, title=d['names'][0])
             # label = d['names'][0]
             # lat_center = sum(lats) / len(lats)
             # lon_center = sum(lons) / len(lons)
             # gmap.text(lat_center, lon_center, label)
-
 
 def main():
     if not os.path.exists(MAPS_DIRECTORY):
@@ -65,7 +65,7 @@ def main():
     for jsonfile in files_list:
        print("hi")
        map_coords(jsonfile,gmap)
-    
+
     gmap.draw("map1.html")
     end_time = time.time()
     elapsed_time = end_time - start_time
