@@ -4,10 +4,13 @@ import json
 import re
 from PyPDF2 import PdfReader
 from utils import *
+import csv
 vessels = {
 "Go Explorer":"https://media.fugro.com/media/docs/default-source/about-fugro-doc/vessels/fugro-explorer_a4.pdf?sfvrsn=26cc091a_14",
-"R/V GO Discovery":"",
-"R/V GO Pursuit":"",
+"GO Discovery":"",
+"GO  Discovery":"",
+"GO Pursuit":"",
+"Go P ursuit":"",
 "M/V Fugro Enterprise":"",
 "HOS Browning":"",
 "RV Emma McCall":"",
@@ -55,54 +58,7 @@ def extract_dates(data):
     #print(data)
     pattern = r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(st|nd|rd|th)?,\s+(\d{4})"
     matches = re.findall(pattern, data)
-    # for match in matches:
-    #     print(match)
     return matches
-def aggregate_data_old(jsonfile,weeks):
-    filename = os.path.splitext(os.path.basename(jsonfile))[0]
-    logging.error(f'Started processing file: {filename}')
-    data = {}
-    week_number = filename.replace('lnm05','')
-    week_number = week_number.replace('2022','')
-    week_number = int(week_number)
-    # Open the JSON file
-    with open(jsonfile, 'r') as f:
-        # Load the data from the file into a dictionary
-        data = json.load(f)
-    # Access the data in the dictionary
-    weeks[week_number] = list()
-    for d in data:
-        if('block' in d):
-            coords = extract_coords(d['block'])
-            dates = extract_dates( d['block'] )
-            for name in vessels:
-                # print(d.keys())
-                # print(len(d['names']))
-                # print(d['names'])
-                if( len( name.split() ) >1 and name.lower() in d['block'].lower() ):
-                    weeks[week_number].append([name.lower(),coords,dates])
-                if( len( name.split() ) == 1 and re.search(r"\b" + re.escape(name.lower()) + r"\b", d['block'].lower()) ):
-                    weeks[week_number].append([name.lower(),coords,dates])
-        # if('coords' in d) and len(d['coords']) != 0:
-        #     print(data)
-        #     # marker_text = d['block'] 
-        #     # for x in dirs :
-        #     #     rect_coords.append(dms_to_decimal(d['coords'][x]))
-        #     # marker_lats, marker_lons = zip(*rect_coords)
-        #     # rect_coords.append(dms_to_decimal(d['coords']['NE']))
-        #     # if(d['coords']['NE'] not in NE):
-        #     #     NE[d['coords']['NE']] = 0
-        #     # NE[d['coords']['NE']] = NE[d['coords']['NE']]+1
-        #     # print(rect_coords)
-        #     # print("\n")
-        #     # lats, lons = zip(*rect_coords)
-        #     # gmap.plot(lats, lons, 'cornflowerblue', edge_width=3)
-        #     # for lat, lon in zip(marker_lats, marker_lons):
-        #     #     gmap.marker(lat, lon, title=d['names'][0])
-        #     # # label = d['names'][0]
-        #     # # lat_center = sum(lats) / len(lats)
-        #     # # lon_center = sum(lons) / len(lons)
-        #     # # gmap.text(lat_center, lon_center, label)
 
 def can_we_skip(text):
     words = ["AUTONOMOUS","DREDGING", "NOURISHMENT", "FIREWORKS", "ORDNANCE", "ENDANGERED" ]
@@ -121,7 +77,7 @@ def split_sections(text):
         # print(f"Section Text: {section}")
         match_sc = re.search(r'SEACOAST', match, re.IGNORECASE)
         if( match_sc and not can_we_skip(match) ):
-            blocks.append(section)
+            blocks.append([ section, match ])
     return(blocks)
 
 def extract_sections(filename):
@@ -147,15 +103,45 @@ def aggregate_data(jsonfile,weeks):
     week_number = int(week_number)
     sections = extract_sections(jsonfile)
     # Access the data in the dictionary
-    weeks[week_number] = list()
-    for d in sections:
+    weeks[week_number] = dict()
+    total_states = dict()
+    vess_list = list()
+    for section in sections:
+            d = section[0]
+            #print(d)
+            #print(section[1])
+            states = re.findall(r'\b[A-Z]{2}\b', section[1])
+            extracted_states = ""
+            if(len(states) > 1 ):
+                extracted_states = '-'.join(states)
+            if( len(states) == 1):
+                extracted_states = states[0]
+            # for st in states:
+            #     if(st not in total_states):
+            #         total_states[st] = 0
+            if(len(extracted_states)):
+                if(extracted_states not in total_states):
+                    total_states[extracted_states]=0
             coords = extract_coords(d)
             dates = extract_dates( d )
             for name in vessels:
                 if( len( name.split() ) >1 and name.lower() in d.lower() ):
-                    weeks[week_number].append([name.lower(),coords,dates,d])
+                    # for st in states:
+                    #    total_states[st] = total_states[st]+1
+                    total_states[extracted_states] = total_states[extracted_states]+1
+                    vess_list.append([name,coords,dates,extracted_states])
                 if( len( name.split() ) == 1 and re.search(r"\b" + re.escape(name.lower()) + r"\b", d.lower()) ):
-                    weeks[week_number].append([name.lower(),coords,dates,d])
+                    # for st in states:
+                    #    total_states[st] = total_states[st]+1
+                    total_states[extracted_states] = total_states[extracted_states]+1
+                    vess_list.append([name,coords,dates,extracted_states])
+    pair_string=""
+    total_states = {key: value for key, value in total_states.items() if value != 0}
+    for key, value in total_states.items():
+        pair_string = pair_string+"," + ('{}: {}'.format(key, value) )
+    weeks[week_number]['vess_list']=vess_list
+    weeks[week_number]['states']=(pair_string)
+    #print(total_states)
 
     
 
@@ -166,27 +152,54 @@ def main():
     files_list = get_files(DATA_DIRECTORY,"pdf")
     #files_list = get_files(JSON_DIRECTORY,'json')
     #files_list = ['json/lnm05522022.json']
-    #files_list = ['D05LNM2022/lnm05012022.pdf']
+    #files_list = ['D05LNM2022/lnm05092022.pdf']
     #print(files_list)
     for jsonfile in files_list:
        aggregate_data(jsonfile,weeks)
-    print(weeks)
+    
+    #print()
+    vessels_in_week = {}
+    json_data = {}
     for k in weeks:
         print("Week:",k)
-        print(len(weeks[k]))
+        #print(weeks[k])
         new_list = list()
-        for n in weeks[k]:
-            #parts = n[0].strip().split(" ")
-            #print(parts)
-
-            #if(len(parts) <= 5 ):
-                new_list.append(n)
-                ships[n[0]] = 1
-        weeks[k] = new_list
+        json_data[k] = list()
+        for n in weeks[k]['vess_list']:
+            new_dict = dict()
+            new_list.append(n[0])
+            new_dict[n[0]] = dict()
+            new_dict[n[0]]['coords'] = n[1]
+            new_dict[n[0]]['dates'] = n[2]
+            new_dict[n[0]]['state'] = n[3]
+            ships[n[0]] = 1
+            json_data[k].append(new_dict)
+        vessels_in_week[k] = new_list
         #print(len(weeks[k]))
-    print(ships)
-    for i in range(1,53):
-        print(i,":\t",weeks[i])
+    #print(json_data)
+    filename = DATA_DIRECTORY+"/vessels_data.csv"
+    fieldnames = ['Week Number'] + list(vessels.keys() )+['Intensity']+['States']
+
+    data = {}
+
+    for row in vessels_in_week:
+        data[row] = {column: 1 if column in vessels_in_week[row] else 0 for column in fieldnames}
+        data[row]['Intensity']=(len(vessels_in_week[row]))
+        data[row]['States'] = weeks[row]['states']
+
+    # Update the dictionary with ones based on the mapping
+    json_file = DATA_DIRECTORY+"/data"+".json"
+    with open(json_file, 'w') as file:
+        json.dump(data, file)
+
+    with open(filename, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        sorted_keys = sorted(data.keys())
+        #for row_number, row_data in data.items():
+        for row_number in sorted_keys:
+            data[row_number]['Week Number'] = row_number 
+            writer.writerow(data[row_number])
 
 if __name__ == '__main__':
     main()
