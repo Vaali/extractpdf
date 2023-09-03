@@ -11,18 +11,39 @@ vessels = {
 "GO  Discovery":"",
 "GO Pursuit":"",
 "Go P ursuit":"",
+"Go Seeker":"",
+"Go Liberty":"",
+"Go Freedom":"",
+"Berto Miller":"",
+"Rana Miller":"",
+"Proteus":"",
+"Go Adventurer":"",
+"Gerry Bordelon":"",
+"Time & Tide":"",
+"Bokalift 2":"",
+"Commander":"",
+"Living Stone":"",
+"Clarence Moore":"",
+"C-Fighter":"",
+"Ocean Sun":"",
 "M/V Fugro Enterprise":"",
 "HOS Browning":"",
 "RV Emma McCall":"",
 "RV Brooks McCall":"",
 "L/B Voyager":"",
+"Deep Helder":"",
+"Geoquip Saentis":"",
 #"Interceptor",
 "NORTHSTAR VOYAGER":"",
 "NORTHSTAR INTERCEPTOR":"",
-"R/V Rachel K Goodwin":"",
+"Northstar Navigator":"",
+"Rachel K Goodwin":"",
+"Atlantic Oceanic":"",
 "CANDU":"",
 "RAIDER":"",
 "SMOKEY":"",
+"Orion":"",
+"Sovereign":"",
 "ANTHONY MILLER":"",
 "M/V WINDSERVE ODYSSEY":"",
 "James K Goodwin":"",
@@ -33,12 +54,51 @@ vessels = {
 "ALMAR":"",
 "WAM-V":"",
 "PSV REGULUS":"",
+"Minerva Uno":"",
+"Josephine Miller":"",
 "FUGRO BRASILIS":"",
 "Aries Ram VII":"",
 "Seaward 20":"",
 "PSV HOS Mystique":"",
-"R/V Shearwater":""
+"Shearwater":"",
+"Fugro Explorer":""
 }
+
+def extract_name(data):
+    vessels_keyword = "call sign"
+    delimiters = ",("
+    regexPattern = '|'.join(map(re.escape, delimiters))
+    names = []
+    currdata = data.lower()
+    currdata = currdata.replace("****extended****",'')
+    while( vessels_keyword in currdata ):
+        before_word, after_word = currdata.split(vessels_keyword, 1)
+        # for ves in vessels:
+        lines = before_word.split("\n")
+        # print(lines)
+        if(len(lines)>1):
+            if('vessel' in lines[-1]):
+                before_word1,after_word1 = lines[-1].split("vessel")
+                names.append(re.split(regexPattern, after_word1)[0])
+            else:
+                names.append(re.split(regexPattern, lines[-1])[0])
+        if(len(lines) == 1 and "and " in lines[0]):
+            before_word1, after_word1 = lines[0].split("and ", 1)
+            names.append(re.split(regexPattern, after_word1)[0])
+        elif( len(lines) == 1 and "vessel " in lines[0] ):
+            before_word1, after_word1 = lines[0].split("vessel ", 1)
+            names.append(re.split(regexPattern, after_word1)[0])
+        elif(len(lines) == 1):
+            names.append(re.split(regexPattern, lines[0])[0])
+        currdata = after_word
+    names = [x.replace("the ","") for x in names]
+    names = [x.replace("r/v ","") for x in names]
+    names = [x.strip() for x in names if x.strip()]
+    # print("******************************")
+    # print(names)
+    # print("##############################")
+    return names
+
 def extract_coords(data):
     #pattern = r"\d{1,2}°\s\d{1,2}'\s\d{1,2}\"[NS]\s/\s\d{1,3}°\s\d{1,2}'\s\d{1,2}\"[EW]"
     #pattern = r"\d{2}°\s\d{2}[’']\s\d{2}[\"]\w\s/\s\d{2}°\s\d{2}[’']\s\d{2}[\"]\w"
@@ -98,14 +158,24 @@ def aggregate_data(jsonfile,weeks):
     filename = os.path.splitext(os.path.basename(jsonfile))[0]
     logging.error(f'Started processing file: {filename}')
     data = {}
-    week_number = filename.replace('lnm05','')
-    week_number = week_number.replace('2022','')
+    week_key = filename.replace('lnm05','')
+    print(filename)
+    if( '2016' in filename ):
+        week_number = week_key.replace('2016','')
+        year = 2016
+    # else:
+    #     week_number = week_key.replace('2023','')
+    #     year = 2023
     week_number = int(week_number)
     sections = extract_sections(jsonfile)
     # Access the data in the dictionary
-    weeks[week_number] = dict()
+    week_key = str(year)+'_'+str(week_number)
+    weeks[week_key] = dict()
+    weeks[week_key]["week_number"] = week_number
+    weeks[week_key]["year"] = year
     total_states = dict()
     vess_list = list()
+    ex_vess_list = list()
     for section in sections:
             d = section[0]
             #print(d)
@@ -116,6 +186,8 @@ def aggregate_data(jsonfile,weeks):
                 extracted_states = '-'.join(states)
             if( len(states) == 1):
                 extracted_states = states[0]
+            names = extract_name(d)
+            ex_vess_list += names
             # for st in states:
             #     if(st not in total_states):
             #         total_states[st] = 0
@@ -139,8 +211,9 @@ def aggregate_data(jsonfile,weeks):
     total_states = {key: value for key, value in total_states.items() if value != 0}
     for key, value in total_states.items():
         pair_string = pair_string+"," + ('{}: {}'.format(key, value) )
-    weeks[week_number]['vess_list']=vess_list
-    weeks[week_number]['states']=(pair_string)
+    weeks[week_key]['vess_list']=vess_list
+    weeks[week_key]['ex_vess_list'] = ex_vess_list
+    weeks[week_key]['states']=(pair_string)
     #print(total_states)
 
     
@@ -150,9 +223,7 @@ def main():
     ships = {}
     start_time = time.time()
     files_list = get_files(DATA_DIRECTORY,"pdf")
-    #files_list = get_files(JSON_DIRECTORY,'json')
-    #files_list = ['json/lnm05522022.json']
-    #files_list = ['D05LNM2022/lnm05092022.pdf']
+    #files_list = ['D05LNM2022/lnm05102022.pdf']
     #print(files_list)
     for jsonfile in files_list:
        aggregate_data(jsonfile,weeks)
@@ -164,7 +235,11 @@ def main():
         print("Week:",k)
         #print(weeks[k])
         new_list = list()
-        json_data[k] = list()
+        json_data[k] = dict()
+        print("extracted list")
+        print(weeks[k]["ex_vess_list"])
+        json_data[k]["extracted_vessels"] = weeks[k]['ex_vess_list']
+        json_data[k]["vessels"]=list()
         for n in weeks[k]['vess_list']:
             new_dict = dict()
             new_list.append(n[0])
@@ -173,8 +248,10 @@ def main():
             new_dict[n[0]]['dates'] = n[2]
             new_dict[n[0]]['state'] = n[3]
             ships[n[0]] = 1
-            json_data[k].append(new_dict)
+            json_data[k]["vessels"].append(new_dict)
         vessels_in_week[k] = new_list
+        print("vess list")
+        print(new_list)
         #print(len(weeks[k]))
     #print(json_data)
     filename = DATA_DIRECTORY+"/vessels_data.csv"
@@ -190,7 +267,7 @@ def main():
     # Update the dictionary with ones based on the mapping
     json_file = DATA_DIRECTORY+"/data"+".json"
     with open(json_file, 'w') as file:
-        json.dump(data, file)
+        json.dump(json_data, file)
 
     with open(filename, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

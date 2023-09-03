@@ -3,7 +3,7 @@ import logging
 
 HTML_DIRECTORY = 'html'
 JSON_DIRECTORY = 'json'
-DATA_DIRECTORY = 'data'
+DATA_DIRECTORY = 'D05LNM2016'
 MAPS_DIRECTORY = 'maps'
 logging.basicConfig(filename='conversion.log', level=logging.ERROR,
                     format='%(asctime)s:%(levelname)s:%(message)s')
